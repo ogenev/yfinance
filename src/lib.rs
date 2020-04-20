@@ -1,9 +1,10 @@
-use futures::future::join_all;
+use reqwest::Client;
 
 pub struct Downloader<'a> {
     base_url: &'a str,
     ticker_list: Vec<&'a str>
 }
+
 
 impl<'a> Downloader<'a> {
     pub fn new(ticker_list: Vec<&'a str>) -> Self {
@@ -16,24 +17,18 @@ impl<'a> Downloader<'a> {
     #[tokio::main]
     pub async fn run(&self) {
         let mut tasks = vec![];
+        let client = Client::new();
         for ticker in &self.ticker_list {
-            tasks.push(self.query_ticker(&ticker))
+            let url = self.base_url.to_owned() + ticker;
+            tasks.push(client.get(&url).send().await.unwrap().text().await.unwrap());
+
         }
-        // wait and return all futures
-        let results = join_all(tasks).await;
-        println!("{:?}", results);
-    }
-
-    async fn query_ticker(&self, ticker: &str) -> Result<String, reqwest::Error>{
-        let url = self.base_url.to_owned() + ticker;
-        let response  = reqwest::get(&url).await.unwrap();
-        //response.json::<Body>().await
-        response.text().await
-
+        println!("{:?}", tasks);
     }
 }
 
+
 pub fn test() {
-    let downloader = Downloader::new(vec!["TSLA", "MSFT", "A", ]);
+    let downloader = Downloader::new(vec!["TSLA", "MSFT", "A"]);
     downloader.run();
 }
